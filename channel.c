@@ -5,6 +5,8 @@
 channel_t* channel_create(size_t size)
 {
     /* IMPLEMENT THIS */
+	channel_t *channel = (*channel_t) malloc(size);
+	channel->buffer = buffer_create(size);
     return NULL;
 }
 
