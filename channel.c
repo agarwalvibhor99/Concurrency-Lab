@@ -12,7 +12,7 @@ channel_t* channel_create(size_t size)
     /* Initializing all the members of struct channel_t */
 	channel_t* channel = (channel_t *) malloc(sizeof(channel_t));
 	channel->buffer = buffer_create(size);
-    channel->closed = 1;
+    channel->closed = 0;
     // pthread_mutex_t mutex; 
     // pthread_cond_t full, empty;
     pthread_cond_init(&channel->full, NULL);
@@ -34,12 +34,19 @@ enum channel_status channel_send(channel_t *channel, void* data)
 {
     /* IMPLEMENT THIS */
     pthread_mutex_lock(&channel->mutex);
-    if(channel->closed == 0){
+    if(channel->closed){
         pthread_mutex_unlock(&channel->mutex);
         return CLOSED_ERROR;
     }
-    while(buffer_add(channel->buffer, data)==-1)
-        pthread_cond_wait(&channel->empty, &channel->mutex);
+     /* When close function closes the channel from outside and we are still waiting we should check if the channel is close  */
+    while(buffer_add(channel->buffer, data)==-1){
+        pthread_cond_wait(&channel->empty, &channel->mutex);//Wait till channel not empty
+           // return GEN_ERROR;          
+        if(channel->closed){
+        pthread_mutex_unlock(&channel->mutex);
+        return CLOSED_ERROR;
+        }
+    }
     // if(!(buffer_add(channel->buffer, data)))
     //     return GEN_ERROR;
     pthread_cond_signal(&channel->full);
@@ -58,12 +65,18 @@ enum channel_status channel_receive(channel_t* channel, void** data)
 {
     /* IMPLEMENT THIS */
     pthread_mutex_lock(&channel->mutex);
-    if(channel->closed == 0){
+    if(channel->closed){
         pthread_mutex_unlock(&channel->mutex);
         return CLOSED_ERROR;
     }
-    while(buffer_remove(channel->buffer, data)==-1)
+    while(buffer_remove(channel->buffer, data)==-1){
         pthread_cond_wait(&channel->full, &channel->mutex);
+        if(channel->closed){
+            pthread_mutex_unlock(&channel->mutex);
+            return CLOSED_ERROR;
+        }
+    }
+        
     //buffer_remove(channel->buffer, data);
     pthread_cond_signal(&channel->empty);
     pthread_mutex_unlock(&channel->mutex);
@@ -84,7 +97,7 @@ enum channel_status channel_non_blocking_send(channel_t* channel, void* data)
 {
     /* IMPLEMENT THIS */
     pthread_mutex_lock(&channel->mutex);
-    if(channel->closed == 0){
+    if(channel->closed){
         pthread_mutex_unlock(&channel->mutex);
         return CLOSED_ERROR;
     }
@@ -92,6 +105,7 @@ enum channel_status channel_non_blocking_send(channel_t* channel, void* data)
         pthread_mutex_unlock(&channel->mutex);      //Was causing error when I was not unlocking in this case
         return CHANNEL_FULL;
     }
+    pthread_cond_signal(&channel->full);            //Was missing signal here and was waiting for very long in test cases thus failing them
     pthread_mutex_unlock(&channel->mutex);
     return SUCCESS;
 }
@@ -109,10 +123,9 @@ enum channel_status channel_non_blocking_send(channel_t* channel, void* data)
 enum channel_status channel_non_blocking_receive(channel_t* channel, void** data)
 {
     /* IMPLEMENT THIS */
-   
-    return SUCCESS;
+
     pthread_mutex_lock(&channel->mutex);
-    if(channel->closed == 0){
+    if(channel->closed){
         pthread_mutex_unlock(&channel->mutex);
         return CLOSED_ERROR;                        
     }   
@@ -120,7 +133,9 @@ enum channel_status channel_non_blocking_receive(channel_t* channel, void** data
         pthread_mutex_unlock(&channel->mutex);          //Earlier error when not unlocking in this if case.
         return CHANNEL_EMPTY;
     }
+    pthread_cond_signal(&channel->empty);            //Was missing signal here and was waiting for very long in test cases thus failing them
     pthread_mutex_unlock(&channel->mutex);
+    return SUCCESS;
 }
 
 // Closes the channel and informs all the blocking send/receive/select calls to return with CLOSED_ERROR
@@ -136,11 +151,11 @@ enum channel_status channel_close(channel_t* channel)
 {
     /* IMPLEMENT THIS */
     pthread_mutex_lock(&channel->mutex);
-    if(channel->closed == 0){
+    if(channel->closed){
         pthread_mutex_unlock(&channel->mutex);
         return CLOSED_ERROR;
     }
-    channel->closed = 0;
+    channel->closed  = 1;
     pthread_cond_broadcast(&channel->full);
     pthread_cond_broadcast(&channel->empty);
     pthread_mutex_unlock(&channel->mutex);
@@ -158,7 +173,7 @@ enum channel_status channel_destroy(channel_t* channel)
     /* IMPLEMENT THIS */
     /* If the channel is not initialized/is closed */
     //pthread_mutex_lock(&channel->mutex);
-    if(channel->closed == 1){
+    if(channel->closed == 0){
         //pthread_mutex_unlock(&channel->mutex);
         return DESTROY_ERROR;
     }
