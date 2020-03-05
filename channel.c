@@ -29,9 +29,21 @@ channel_t* channel_create(size_t size)
 // Returns SUCCESS for successfully writing data to the channel,
 // CLOSED_ERROR if the channel is closed, and
 // GEN_ERROR on encountering any other generic error of any sort
+/* Reference from Textbook: Three Easy Pieces - Consumer Producer Problem */
 enum channel_status channel_send(channel_t *channel, void* data)
 {
     /* IMPLEMENT THIS */
+    pthread_mutex_lock(&channel->mutex);
+    if(channel->closed == 0){
+        pthread_mutex_unlock(&channel->mutex);
+        return CLOSED_ERROR;
+    }
+    while(buffer_add(channel->buffer, data)==-1)
+        pthread_cond_wait(&channel->empty, &channel->mutex);
+    // if(!(buffer_add(channel->buffer, data)))
+    //     return GEN_ERROR;
+    pthread_cond_signal(&channel->full);
+    pthread_mutex_unlock(&channel->mutex);
     return SUCCESS;
 }
 
@@ -41,9 +53,20 @@ enum channel_status channel_send(channel_t *channel, void* data)
 // Returns SUCCESS for successful retrieval of data,
 // CLOSED_ERROR if the channel is closed, and
 // GEN_ERROR on encountering any other generic error of any sort
+/* Reference from Textbook: Three Easy Pieces - Consumer Producer Problem */
 enum channel_status channel_receive(channel_t* channel, void** data)
 {
     /* IMPLEMENT THIS */
+    pthread_mutex_lock(&channel->mutex);
+    if(channel->closed == 0){
+        pthread_mutex_unlock(&channel->mutex);
+        return CLOSED_ERROR;
+    }
+    while(buffer_remove(channel->buffer, data)==-1)
+        pthread_cond_wait(&channel->full, &channel->mutex);
+    //buffer_remove(channel->buffer, data);
+    pthread_cond_signal(&channel->empty);
+    pthread_mutex_unlock(&channel->mutex);
     return SUCCESS;
 }
 
@@ -53,9 +76,23 @@ enum channel_status channel_receive(channel_t* channel, void** data)
 // CHANNEL_FULL if the channel is full and the data was not added to the buffer,
 // CLOSED_ERROR if the channel is closed, and
 // GEN_ERROR on encountering any other generic error of any sort
+/* 
+ * Similar to blocking send except not using while loop since waiting isn't required. Starting with locking and just using one if and returning CHANNEL_FULL
+ * if buffer is full and accordingly unlocking after updating buffer.
+ */
 enum channel_status channel_non_blocking_send(channel_t* channel, void* data)
 {
     /* IMPLEMENT THIS */
+    pthread_mutex_lock(&channel->mutex);
+    if(channel->closed == 0){
+        pthread_mutex_unlock(&channel->mutex);
+        return CLOSED_ERROR;
+    }
+    if(buffer_add(channel->buffer, data)==-1){
+        pthread_mutex_unlock(&channel->mutex);      //Was causing error when I was not unlocking in this case
+        return CHANNEL_FULL;
+    }
+    pthread_mutex_unlock(&channel->mutex);
     return SUCCESS;
 }
 
@@ -65,11 +102,25 @@ enum channel_status channel_non_blocking_send(channel_t* channel, void* data)
 // CHANNEL_EMPTY if the channel is empty and nothing was stored in data,
 // CLOSED_ERROR if the channel is closed, and
 // GEN_ERROR on encountering any other generic error of any sort
+/* 
+ * Similar to blocking receive except not using while loop since waiting isn't required. Starting with locking and just using one if and returning CHANNEL_EMPTY
+ * if buffer is empty and accordingly unlocking after updating buffer.
+ */
 enum channel_status channel_non_blocking_receive(channel_t* channel, void** data)
 {
     /* IMPLEMENT THIS */
-    channel->closed = 0;
+   
     return SUCCESS;
+    pthread_mutex_lock(&channel->mutex);
+    if(channel->closed == 0){
+        pthread_mutex_unlock(&channel->mutex);
+        return CLOSED_ERROR;                        
+    }   
+    if(buffer_remove(channel->buffer, data)==-1){
+        pthread_mutex_unlock(&channel->mutex);          //Earlier error when not unlocking in this if case.
+        return CHANNEL_EMPTY;
+    }
+    pthread_mutex_unlock(&channel->mutex);
 }
 
 // Closes the channel and informs all the blocking send/receive/select calls to return with CLOSED_ERROR
@@ -77,9 +128,23 @@ enum channel_status channel_non_blocking_receive(channel_t* channel, void** data
 // Returns SUCCESS if close is successful,
 // CLOSED_ERROR if the channel is already closed, and
 // GEN_ERROR in any other error case
+/*
+ * Using pthread_cond_broadcast which wakes all the threads. Changing the closed flag to 0 so that all threads when wake up to
+ * updated closed value.
+ */
 enum channel_status channel_close(channel_t* channel)
 {
     /* IMPLEMENT THIS */
+    pthread_mutex_lock(&channel->mutex);
+    if(channel->closed == 0){
+        pthread_mutex_unlock(&channel->mutex);
+        return CLOSED_ERROR;
+    }
+    channel->closed = 0;
+    pthread_cond_broadcast(&channel->full);
+    pthread_cond_broadcast(&channel->empty);
+    pthread_mutex_unlock(&channel->mutex);
+    //channel->closed = 0;                 
     return SUCCESS;
 }
 
@@ -93,7 +158,7 @@ enum channel_status channel_destroy(channel_t* channel)
     /* IMPLEMENT THIS */
     /* If the channel is not initialized/is closed */
     //pthread_mutex_lock(&channel->mutex);
-    if(channel->close == 1){
+    if(channel->closed == 1){
         //pthread_mutex_unlock(&channel->mutex);
         return DESTROY_ERROR;
     }
