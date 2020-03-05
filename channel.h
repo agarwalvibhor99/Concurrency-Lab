@@ -29,6 +29,16 @@ typedef struct {
 
     /* ADD ANY STRUCT ENTRIES YOU NEED HERE */
     /* IMPLEMENT THIS */
+    /* 
+     * closed used as flag to check if channel is closed
+     * pthread_mutex_t mutex for lock and unlock to make sure one thread is using buffer and other components of channel_t
+     * pthread_cond_t full, empty are condition variables for each to check if the buffer is full and empty. Used for waiting and signalling to activate sleeping threads
+    */
+   
+    int closed; 
+    pthread_mutex_t mutex;
+    pthread_cond_t full;
+    pthread_cond_t empty;
 } channel_t;
 
 // Defines channel list structure for channel_select function

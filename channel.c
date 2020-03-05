@@ -1,13 +1,26 @@
 #include "channel.h"
 
+/* Reference: Channels Slides posted on Canvas
+              Operating Systems: Three Easy Pieces Textbook
+*/
+
 // Creates a new channel with the provided size and returns it to the caller
 // A 0 size indicates an unbuffered channel, whereas a positive size indicates a buffered channel
 channel_t* channel_create(size_t size)
 {
     /* IMPLEMENT THIS */
-	channel_t *channel = (*channel_t) malloc(size);
+    /* Initializing all the members of struct channel_t */
+	channel_t* channel = (channel_t *) malloc(sizeof(channel_t));
 	channel->buffer = buffer_create(size);
-    return NULL;
+    channel->closed = 1;
+    // pthread_mutex_t mutex; 
+    // pthread_cond_t full, empty;
+    pthread_cond_init(&channel->full, NULL);
+    pthread_cond_init(&channel->empty, NULL);
+	pthread_mutex_init(&channel->mutex, NULL);
+	//channel->mutex = mutex;
+
+    return channel;
 }
 
 // Writes data to the given channel
@@ -55,6 +68,7 @@ enum channel_status channel_non_blocking_send(channel_t* channel, void* data)
 enum channel_status channel_non_blocking_receive(channel_t* channel, void** data)
 {
     /* IMPLEMENT THIS */
+    channel->closed = 0;
     return SUCCESS;
 }
 
@@ -77,6 +91,19 @@ enum channel_status channel_close(channel_t* channel)
 enum channel_status channel_destroy(channel_t* channel)
 {
     /* IMPLEMENT THIS */
+    /* If the channel is not initialized/is closed */
+    //pthread_mutex_lock(&channel->mutex);
+    if(channel->close == 1){
+        //pthread_mutex_unlock(&channel->mutex);
+        return DESTROY_ERROR;
+    }
+    /* Destroying all the mutex and condition variables initialized. Calling buffer_free function to free the buffer. Also, freeing the memory for channel */
+    pthread_mutex_destroy(&channel->mutex);
+    pthread_cond_destroy(&channel->full);
+    pthread_cond_destroy(&channel->empty);
+    buffer_free(channel->buffer);
+    free(channel);
+    //pthread_mutex_unlock(&channel->mutex);
     return SUCCESS;
 }
 
