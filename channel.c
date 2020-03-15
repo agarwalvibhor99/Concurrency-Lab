@@ -17,7 +17,9 @@ channel_t* channel_create(size_t size)
     // pthread_cond_t full, empty;
     pthread_cond_init(&channel->full, NULL);
     pthread_cond_init(&channel->empty, NULL);
+    //pthread_cond_init(&channel->select, NULL);
 	pthread_mutex_init(&channel->mutex, NULL);
+    //channel->size = size;
 	//channel->mutex = mutex;
 
     return channel;
@@ -197,5 +199,57 @@ enum channel_status channel_destroy(channel_t* channel)
 enum channel_status channel_select(select_t* channel_list, size_t channel_count, size_t* selected_index)
 {
     /* IMPLEMENT THIS */
+   size_t count = 0;
+   int flag = 1;
+    while(flag){
+        //count;
+        channel_t *channel = channel_list[count].channel;
+        void *data = channel_list[*selected_index].data;
+        // if(channel_list[count].dir == RECV && buffer_current_size(channel->buffer) == channel->size){
+        //     channel_non_blocking_receive(channel, &data);
+        //     flag = 0;
+        // //channel_list[selected_index]->
+        // }
+        //Performing SEND
+        if(channel_list[count].dir == SEND && buffer_current_size(channel->buffer) == 0){
+            pthread_mutex_lock(&channel->mutex);
+            if(channel->closed){
+            pthread_mutex_unlock(&channel->mutex);
+                return CLOSED_ERROR;
+            }
+            if(buffer_add(channel->buffer, data)==-1){
+                pthread_mutex_unlock(&channel->mutex);      //Was causing error when I was not unlocking in this case
+                 return CHANNEL_FULL;
+            }
+            pthread_cond_signal(&channel->full);            //Was missing signal here and was waiting for very long in test cases thus failing them
+            pthread_mutex_unlock(&channel->mutex);
+            selected_index = count; //
+            flag = 0;
+            return SUCCESS;
+            //channel_list[selected_index]->
+        }
+        //Performing RECV
+        else if(channel_list[count].dir == RECV && buffer_current_size(channel->buffer) == channel->size){
+            pthread_mutex_lock(&channel->mutex);
+            if(channel->closed){
+                pthread_mutex_unlock(&channel->mutex);
+                return CLOSED_ERROR;                        
+            }   
+            if(buffer_remove(channel->buffer, data)==-1){
+                pthread_mutex_unlock(&channel->mutex);          //Earlier error when not unlocking in this if case.
+                return CHANNEL_EMPTY;
+            }
+            pthread_cond_signal(&channel->empty);            //Was missing signal here and was waiting for very long in test cases thus failing them
+            pthread_mutex_unlock(&channel->mutex);
+            selected_index = count; 
+            flag = 0;
+            return SUCCESS;
+        }
+        count = (count+1)%channel_count;
+    }
+
     return SUCCESS;
 }
+//Each iteration lock for 
+
+//While we wait in select, some other thread might comein and specifically not call select and change the channel condition right.?
