@@ -221,7 +221,7 @@ enum channel_status channel_select(select_t* channel_list, size_t channel_count,
                 pthread_mutex_unlock(&channel->mutex);      //Was causing error when I was not unlocking in this case
                  return CHANNEL_FULL;
             }
-            pthread_cond_signal(&channel->full);            //Was missing signal here and was waiting for very long in test cases thus failing them
+            //pthread_cond_signal(&channel->full);            //Was missing signal here and was waiting for very long in test cases thus failing them
             pthread_mutex_unlock(&channel->mutex);
             selected_index = count; //
             flag = 0;
@@ -239,7 +239,7 @@ enum channel_status channel_select(select_t* channel_list, size_t channel_count,
                 pthread_mutex_unlock(&channel->mutex);          //Earlier error when not unlocking in this if case.
                 return CHANNEL_EMPTY;
             }
-            pthread_cond_signal(&channel->empty);            //Was missing signal here and was waiting for very long in test cases thus failing them
+            //pthread_cond_signal(&channel->empty);            //Was missing signal here and was waiting for very long in test cases thus failing them
             pthread_mutex_unlock(&channel->mutex);
             selected_index = count; 
             flag = 0;
