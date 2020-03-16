@@ -211,6 +211,8 @@ enum channel_status channel_select(select_t* channel_list, size_t channel_count,
         // //channel_list[selected_index]->
         // }
         //Performing SEND
+
+        //Multiple  thread calling the same select. 
         if(channel_list[count].dir == SEND && buffer_current_size(channel->buffer) == 0){
             pthread_mutex_lock(&channel->mutex);
             if(channel->closed){
@@ -221,7 +223,7 @@ enum channel_status channel_select(select_t* channel_list, size_t channel_count,
                 pthread_mutex_unlock(&channel->mutex);      //Was causing error when I was not unlocking in this case
                  return CHANNEL_FULL;
             }
-            //pthread_cond_signal(&channel->full);            //Was missing signal here and was waiting for very long in test cases thus failing them
+            pthread_cond_signal(&channel->select);            //Was missing signal here and was waiting for very long in test cases thus failing them
             pthread_mutex_unlock(&channel->mutex);
             selected_index = count; //
             flag = 0;
@@ -240,11 +242,14 @@ enum channel_status channel_select(select_t* channel_list, size_t channel_count,
                 return CHANNEL_EMPTY;
             }
             //pthread_cond_signal(&channel->empty);            //Was missing signal here and was waiting for very long in test cases thus failing them
+            pthread_cond_signal(&channel->select);
             pthread_mutex_unlock(&channel->mutex);
             selected_index = count; 
             flag = 0;
             return SUCCESS;
         }
+        pthread_cond_wait(&channel->select, &channel->mutex);
+
         count = (count+1)%channel_count;
     }
 
@@ -253,3 +258,5 @@ enum channel_status channel_select(select_t* channel_list, size_t channel_count,
 //Each iteration lock for 
 
 //While we wait in select, some other thread might comein and specifically not call select and change the channel condition right.?
+
+//Can I put the cond_signal at start of the function to tell to iterate again
