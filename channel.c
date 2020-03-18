@@ -52,6 +52,7 @@ enum channel_status channel_send(channel_t *channel, void* data)
     // if(!(buffer_add(channel->buffer, data)))
     //     return GEN_ERROR;
     pthread_cond_signal(&channel->full);
+    pthread_cond_signal(&channel->select); 
     pthread_mutex_unlock(&channel->mutex);
     return SUCCESS;
 }
@@ -81,6 +82,7 @@ enum channel_status channel_receive(channel_t* channel, void** data)
         
     //buffer_remove(channel->buffer, data);
     pthread_cond_signal(&channel->empty);
+    pthread_cond_signal(&channel->select); 
     pthread_mutex_unlock(&channel->mutex);
     return SUCCESS;
 }
@@ -108,6 +110,7 @@ enum channel_status channel_non_blocking_send(channel_t* channel, void* data)
         return CHANNEL_FULL;
     }
     pthread_cond_signal(&channel->full);            //Was missing signal here and was waiting for very long in test cases thus failing them
+    pthread_cond_signal(&channel->select); 
     pthread_mutex_unlock(&channel->mutex);
     return SUCCESS;
 }
@@ -136,6 +139,7 @@ enum channel_status channel_non_blocking_receive(channel_t* channel, void** data
         return CHANNEL_EMPTY;
     }
     pthread_cond_signal(&channel->empty);            //Was missing signal here and was waiting for very long in test cases thus failing them
+    pthread_cond_signal(&channel->select); 
     pthread_mutex_unlock(&channel->mutex);
     return SUCCESS;
 }
