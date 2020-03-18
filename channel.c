@@ -17,7 +17,7 @@ channel_t* channel_create(size_t size)
     // pthread_cond_t full, empty;
     pthread_cond_init(&channel->full, NULL);
     pthread_cond_init(&channel->empty, NULL);
-    //pthread_cond_init(&channel->select, NULL);
+    pthread_cond_init(&channel->select, NULL);
 	pthread_mutex_init(&channel->mutex, NULL);
     //channel->size = size;
 	//channel->mutex = mutex;
