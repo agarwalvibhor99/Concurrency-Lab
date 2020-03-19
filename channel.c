@@ -205,6 +205,7 @@ enum channel_status channel_select(select_t* channel_list, size_t channel_count,
     /* IMPLEMENT THIS */
    size_t count = 0;
    int flag = 1;
+
     while(flag){
         //count;
         channel_t *channel = channel_list[count].channel;
@@ -229,7 +230,7 @@ enum channel_status channel_select(select_t* channel_list, size_t channel_count,
             }
             pthread_cond_signal(&channel->select);            //Was missing signal here and was waiting for very long in test cases thus failing them
             pthread_mutex_unlock(&channel->mutex);
-            selected_index = count; //
+            *selected_index = count; //
             flag = 0;
             return SUCCESS;
             //channel_list[selected_index]->
@@ -248,7 +249,7 @@ enum channel_status channel_select(select_t* channel_list, size_t channel_count,
             //pthread_cond_signal(&channel->empty);            //Was missing signal here and was waiting for very long in test cases thus failing them
             pthread_cond_signal(&channel->select);
             pthread_mutex_unlock(&channel->mutex);
-            selected_index = count; 
+            *selected_index = count; 
             flag = 0;
             return SUCCESS;
         }
