@@ -37,9 +37,10 @@ typedef struct {
 
     int closed; 
     pthread_mutex_t mutex;
+    //pthread_mutex_t select_mutex;
     pthread_cond_t full;
     pthread_cond_t empty;
-    pthread_cond_t select;
+    pthread_cond_t *select;
     size_t size;
 } channel_t;
 

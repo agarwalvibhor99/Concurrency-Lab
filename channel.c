@@ -13,15 +13,12 @@ channel_t* channel_create(size_t size)
 	channel_t* channel = (channel_t *) malloc(sizeof(channel_t));
 	channel->buffer = buffer_create(size);
     channel->closed = 0;
-    // pthread_mutex_t mutex; 
-    // pthread_cond_t full, empty;
     pthread_cond_init(&channel->full, NULL);
     pthread_cond_init(&channel->empty, NULL);
-    pthread_cond_init(&channel->select, NULL);
+    //pthread_cond_init(&channel->select, NULL);
 	pthread_mutex_init(&channel->mutex, NULL);
-    //channel->size = size;
-	//channel->mutex = mutex;
-
+    pthread_mutex_init(&channel->select_mutex, NULL);
+    channel->size = size;
     return channel;
 }
 
@@ -52,7 +49,8 @@ enum channel_status channel_send(channel_t *channel, void* data)
     // if(!(buffer_add(channel->buffer, data)))
     //     return GEN_ERROR;
     pthread_cond_signal(&channel->full);
-    pthread_cond_signal(&channel->select); 
+    //sempost()
+    // pthread_cond_signal(&channel->select); 
     pthread_mutex_unlock(&channel->mutex);
     return SUCCESS;
 }
@@ -164,6 +162,7 @@ enum channel_status channel_close(channel_t* channel)
     channel->closed  = 1;
     pthread_cond_broadcast(&channel->full);
     pthread_cond_broadcast(&channel->empty);
+    //pthread_cond_broadcast(&channel->)
     pthread_mutex_unlock(&channel->mutex);
     //channel->closed = 0;                 
     return SUCCESS;
@@ -203,65 +202,86 @@ enum channel_status channel_destroy(channel_t* channel)
 enum channel_status channel_select(select_t* channel_list, size_t channel_count, size_t* selected_index)
 {
     /* IMPLEMENT THIS */
-   size_t count = 0;
-   int flag = 1;
+   //int flag = 1;
+   
+   //local select condition variable 
+   //one cond variable multiple channel
+   //pointer in struct , and then local will point to that
 
-    while(flag){
-        //count;
-        channel_t *channel = channel_list[count].channel;
-        void *data = channel_list[*selected_index].data;
-        // if(channel_list[count].dir == RECV && buffer_current_size(channel->buffer) == channel->size){
-        //     channel_non_blocking_receive(channel, &data);
-        //     flag = 0;
-        // //channel_list[selected_index]->
-        // }
+    //Linked list to store channel_select calls
+
+//    sem_t *select;
+//    sem_init(&select, 0, channel_count);
+
+
+    //
+   
+   pthread_cond_t select;
+   pthread_mutex_t select_mutex;
+   pthread_mutex_init(&select_mutex, NULL);
+   pthread_cond_init(&select, NULL);
+   pthread_mutex_lock(&select_mutex);
+
+   for(int i = 0 ; i < channel_count; i++){
+        channel_list[i].channel->select = &select;
+    }
+   while(true){
+    for(int i = 0 ; i < channel_count; i++){
+        channel_t *channel = channel_list[i].channel;  
+        //sem_post(&select);
+        //pthread_mutex_lock(&channel->select_mutex);
+        void *data = channel_list[i].data;
+
         //Performing SEND
-
-        //Multiple  thread calling the same select. 
-        if(channel_list[count].dir == SEND && buffer_current_size(channel->buffer) == 0){
-            pthread_mutex_lock(&channel->mutex);
+        pthread_mutex_lock(&channel->mutex);
+        if(channel_list[i].dir == SEND){ // 
+            
             if(channel->closed){
             pthread_mutex_unlock(&channel->mutex);
                 return CLOSED_ERROR;
             }
-            if(buffer_add(channel->buffer, data)==-1){
-                pthread_mutex_unlock(&channel->mutex);      //Was causing error when I was not unlocking in this case
-                 return CHANNEL_FULL;
+            if(buffer_add(channel->buffer, data) == 0){
+                //pthread_cond_signal(&select);            //Was missing signal here and was waiting for very long in test cases thus failing them
+                pthread_mutex_unlock(&channel->mutex);
+                *selected_index = i; //
+                //flag = 0;
+                return SUCCESS;
             }
-            pthread_cond_signal(&channel->select);            //Was missing signal here and was waiting for very long in test cases thus failing them
-            pthread_mutex_unlock(&channel->mutex);
-            *selected_index = count; //
-            flag = 0;
-            return SUCCESS;
-            //channel_list[selected_index]->
         }
         //Performing RECV
-        else if(channel_list[count].dir == RECV && buffer_current_size(channel->buffer) == channel->size){
-            pthread_mutex_lock(&channel->mutex);
+        //pthread_mutex_lock(&channel->mutex);
+        if(channel_list[i].dir == RECV && buffer_current_size(channel->buffer) == channel->size){// remove second condition
+           
             if(channel->closed){
                 pthread_mutex_unlock(&channel->mutex);
                 return CLOSED_ERROR;                        
             }   
-            if(buffer_remove(channel->buffer, data)==-1){
-                pthread_mutex_unlock(&channel->mutex);          //Earlier error when not unlocking in this if case.
-                return CHANNEL_EMPTY;
+            if(buffer_remove(channel->buffer, data) == 0){
+                pthread_cond_signal(&select);
+                pthread_mutex_unlock(&channel->mutex);
+                *selected_index = i; 
+                //flag = 0;
+                return SUCCESS;
             }
-            //pthread_cond_signal(&channel->empty);            //Was missing signal here and was waiting for very long in test cases thus failing them
-            pthread_cond_signal(&channel->select);
-            pthread_mutex_unlock(&channel->mutex);
-            *selected_index = count; 
-            flag = 0;
-            return SUCCESS;
         }
-        pthread_cond_wait(&channel->select, &channel->mutex);
-
-        count = (count+1)%channel_count;
+        pthread_mutex_unlock(&channel->mutex);
     }
-
+    //sem_wait(&select);
+    pthread_cond_wait(&select, &select_mutex); // I can't have this here because channel was local to the loop I created. Confused what should I wait on
+   }
+    pthread_mutex_unlock(&select_mutex);
     return SUCCESS;
 }
-//Each iteration lock for 
 
-//While we wait in select, some other thread might comein and specifically not call select and change the channel condition right.?
 
-//Can I put the cond_signal at start of the function to tell to iterate again
+//Created a new conditional variable for select to wait, and signalling in both the non blocking and blocking send and receive functions to wake this. 
+//But since channel variable created is local to the loop can't signal it. Need some local variable that can help in signalling 
+
+
+
+/*
+ * Array are pointers. We are given a pointer to channel_list.
+
+
+
+*/
