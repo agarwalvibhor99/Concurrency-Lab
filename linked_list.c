@@ -4,9 +4,9 @@
 list_t* list_create()
 {
     /* IMPLEMENT THIS IF YOU WANT TO USE LINKED LISTS */
-    struct list_t* myList = (struct list_t*)malloc(sizeof(list_t));
-    //myList->head->n
-    //myList->count = 0;
+    list_t* myList = (list_t*)malloc(sizeof(list_t));
+    myList->head = NULL;
+    myList->count = 0;
 
     return myList;
     //return NULL;
@@ -65,18 +65,27 @@ list_node_t* list_find(list_t* list, void* data)
 void list_insert(list_t* list, void* data)
 {
     /* IMPLEMENT THIS IF YOU WANT TO USE LINKED LISTS */
-    list_node_t *temp = list->head;
-    list->head->next = 
-
-
-
-    list->count++;
+    if(count == 0){
+        list->head->next = NULL;
+        list->head->prev = NULL;
+        list->head->data = data;
+        list->count++;
+    }
+    else{
+        list_node_t *temp = list->head;
+        list->head->next = temp;
+        list->head = temp;
+        list->count++;
+    }
+    //list->count++;
 }
 
 // Removes a node from the list and frees the node resources
 void list_remove(list_t* list, list_node_t* node)
 {
     /* IMPLEMENT THIS IF YOU WANT TO USE LINKED LISTS */
+    list->head = list->head->next;
+    return 1;
 }
 
 // Executes a function for each element in the list
