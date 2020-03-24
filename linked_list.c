@@ -65,16 +65,23 @@ list_node_t* list_find(list_t* list, void* data)
 void list_insert(list_t* list, void* data)
 {
     /* IMPLEMENT THIS IF YOU WANT TO USE LINKED LISTS */
+    list_node_t *myNode = (list_node_t*)malloc(sizeof(list_node_t));
+    
     if(list->count == 0){
-        list->head->next = NULL;
-        list->head->prev = NULL;
+        myNode->next= NULL;
+        myNode->prev = NULL;
         list->head->data = data;
         list->count++;
     }
     else{
-        list_node_t *temp = list->head;
-        list->head->next = temp;
-        list->head = temp;
+        //list_node_t *temp = (list_node_t*)malloc(sizeof(list_node_t));
+        //myNode = list->head;
+        myNode->next = list->head;
+        list->head->prev = myNode;
+        myNode->prev = NULL;
+        list->head = myNode;
+        // list->head->next = myNode;
+        // list->head = myNode;
         list->count++;
     }
     //list->count++;
@@ -84,8 +91,15 @@ void list_insert(list_t* list, void* data)
 void list_remove(list_t* list, list_node_t* node)
 {
     /* IMPLEMENT THIS IF YOU WANT TO USE LINKED LISTS */
-    node->data = list->head->data;
-    list->head = list->head->next;
+    list_node_t *temp = list->head;
+    while(temp){
+        if (temp == node){
+            temp->next = node->next;
+            //temp->prev = 
+
+            free(node);
+        }
+    }
     //return 1;
 }
 

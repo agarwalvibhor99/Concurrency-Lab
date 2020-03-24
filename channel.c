@@ -112,6 +112,7 @@ enum channel_status channel_send(channel_t *channel, void* data)
         }
     }
     Pthread_cond_signal(&channel->full);
+    Pthread_cond_signal(&channel->list->head->data);
     Pthread_mutex_unlock(&channel->mutex);
     return SUCCESS;
 }
@@ -259,8 +260,6 @@ enum channel_status channel_select(select_t* channel_list, size_t channel_count,
    pthread_cond_t select;
    pthread_mutex_t select_mutex;    
    } myData;
-//    pthread_cond_t select;
-//    pthread_mutex_t select_mutex;
    pthread_mutex_init(&myData.select_mutex, NULL);
    pthread_cond_init(&myData.select, NULL);
    
