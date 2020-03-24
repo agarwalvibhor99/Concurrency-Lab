@@ -16,9 +16,7 @@ channel_t* channel_create(size_t size)
     channel->closed = 0;
     pthread_cond_init(&channel->full, NULL);
     pthread_cond_init(&channel->empty, NULL);
-    //pthread_cond_init(&channel->select, NULL);
 	pthread_mutex_init(&channel->mutex, NULL);
-    //pthread_mutex_init(&channel->select_mutex, NULL);
     channel->list = list_create();
     channel->size = size;
     return channel;
@@ -48,11 +46,7 @@ enum channel_status channel_send(channel_t *channel, void* data)
         return CLOSED_ERROR;
         }
     }
-    // if(!(buffer_add(channel->buffer, data)))
-    //     return GEN_ERROR;
     pthread_cond_signal(&channel->full);
-    //sempost()
-    // pthread_cond_signal(&channel->select); 
     pthread_mutex_unlock(&channel->mutex);
     return SUCCESS;
 }
@@ -79,10 +73,7 @@ enum channel_status channel_receive(channel_t* channel, void** data)
             return CLOSED_ERROR;
         }
     }
-        
-    //buffer_remove(channel->buffer, data);
     pthread_cond_signal(&channel->empty);
-    //pthread_cond_signal(&channel->select); 
     pthread_mutex_unlock(&channel->mutex);
     return SUCCESS;
 }
@@ -110,7 +101,6 @@ enum channel_status channel_non_blocking_send(channel_t* channel, void* data)
         return CHANNEL_FULL;
     }
     pthread_cond_signal(&channel->full);            //Was missing signal here and was waiting for very long in test cases thus failing them
-    //pthread_cond_signal(&channel->select); 
     pthread_mutex_unlock(&channel->mutex);
     return SUCCESS;
 }
@@ -139,7 +129,6 @@ enum channel_status channel_non_blocking_receive(channel_t* channel, void** data
         return CHANNEL_EMPTY;
     }
     pthread_cond_signal(&channel->empty);            //Was missing signal here and was waiting for very long in test cases thus failing them
-    //pthread_cond_signal(&channel->select); 
     pthread_mutex_unlock(&channel->mutex);
     return SUCCESS;
 }
@@ -166,7 +155,6 @@ enum channel_status channel_close(channel_t* channel)
     pthread_cond_broadcast(&channel->empty);
     //pthread_cond_broadcast(&channel->)
     pthread_mutex_unlock(&channel->mutex);
-    //channel->closed = 0;                 
     return SUCCESS;
 }
 
@@ -179,9 +167,7 @@ enum channel_status channel_destroy(channel_t* channel)
 {
     /* IMPLEMENT THIS */
     /* If the channel is not initialized/is closed */
-    //pthread_mutex_lock(&channel->mutex);
     if(channel->closed == 0){
-        //pthread_mutex_unlock(&channel->mutex);
         return DESTROY_ERROR;
     }
     /* Destroying all the mutex and condition variables initialized. Calling buffer_free function to free the buffer. Also, freeing the memory for channel */
@@ -189,8 +175,8 @@ enum channel_status channel_destroy(channel_t* channel)
     pthread_cond_destroy(&channel->full);
     pthread_cond_destroy(&channel->empty);
     buffer_free(channel->buffer);
+    list_destroy(channel->list);
     free(channel);
-    //pthread_mutex_unlock(&channel->mutex);
     return SUCCESS;
 }
 
@@ -235,7 +221,7 @@ enum channel_status channel_select(select_t* channel_list, size_t channel_count,
             if(buffer_add(channel->buffer, data) == 0){
                 //pthread_cond_signal(&select);            //Was missing signal here and was waiting for very long in test cases thus failing them
                 pthread_mutex_unlock(&channel->mutex);
-                *selected_index = i; //
+                *selected_index = (size_t)i; //
                 //flag = 0;
                 return SUCCESS;
             }
@@ -251,7 +237,7 @@ enum channel_status channel_select(select_t* channel_list, size_t channel_count,
             if(buffer_remove(channel->buffer, data) == 0){
                 pthread_cond_signal(&myData.select);
                 pthread_mutex_unlock(&channel->mutex);
-                *selected_index = i; 
+                *selected_index = (size_t) i; 
                 //flag = 0;
                 return SUCCESS;
             }

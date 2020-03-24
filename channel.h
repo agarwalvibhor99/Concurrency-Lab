@@ -37,12 +37,15 @@ typedef struct {
 
     int closed; 
     pthread_mutex_t mutex;
-    pthread_mutex_t *select_mutex;
+    //pthread_mutex_t *select_mutex;
     pthread_cond_t full;
     pthread_cond_t empty;
-    pthread_cond_t *select; //LinkedList
+    //pthread_cond_t *select; //LinkedList
     size_t size;
+    list_t *list;
 } channel_t;
+
+
 
 // Defines channel list structure for channel_select function
 enum direction {

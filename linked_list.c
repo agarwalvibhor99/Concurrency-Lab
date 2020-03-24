@@ -65,7 +65,7 @@ list_node_t* list_find(list_t* list, void* data)
 void list_insert(list_t* list, void* data)
 {
     /* IMPLEMENT THIS IF YOU WANT TO USE LINKED LISTS */
-    if(count == 0){
+    if(list->count == 0){
         list->head->next = NULL;
         list->head->prev = NULL;
         list->head->data = data;
@@ -84,8 +84,9 @@ void list_insert(list_t* list, void* data)
 void list_remove(list_t* list, list_node_t* node)
 {
     /* IMPLEMENT THIS IF YOU WANT TO USE LINKED LISTS */
+    node->data = list->head->data;
     list->head = list->head->next;
-    return 1;
+    //return 1;
 }
 
 // Executes a function for each element in the list

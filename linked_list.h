@@ -7,6 +7,7 @@
 typedef struct list_node {
     struct list_node* next;
     struct list_node* prev;
+    //pthread_mutex_t = 
     void* data;
 } list_node_t;
 
