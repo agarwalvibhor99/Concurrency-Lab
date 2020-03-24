@@ -7,6 +7,71 @@
 // Creates a new channel with the provided size and returns it to the caller
 // A 0 size indicates an unbuffered channel, whereas a positive size indicates a buffered channel
 
+
+void Pthread_mutex_init(pthread_mutex_t *mutex, pthread_mutexattr_t *attr){
+    int value = pthread_mutex_init(mutex, NULL);
+    if (value != 0){
+        printf("Error Initializing Mutex");
+    }
+}
+
+void Pthread_cond_init(pthread_cond_t *cond, pthread_mutexattr_t *attr){
+    int value = pthread_cond_init(cond, NULL);
+    if (value != 0){
+        printf("Error Initializing Condition Variable");
+    }
+}
+
+void Pthread_mutex_lock(pthread_mutex_t *mutex){
+    int value = pthread_mutex_lock(mutex);
+    if (value != 0){
+        printf("Error Locking Mutex");
+    }
+}
+
+void Pthread_mutex_unlock(pthread_mutex_t *mutex){
+    int value = pthread_mutex_unlock(mutex);
+    if (value != 0){
+        printf("Error Unlocking Mutex");
+    }
+}
+
+void Pthread_cond_wait(pthread_cond_t *cond, pthread_mutex_t *mutex){
+    int value = pthread_cond_wait(cond, mutex);
+    if (value != 0){
+        printf("Error Wait");
+    }
+}
+
+
+void Pthread_cond_signal(pthread_cond_t *cond){
+    int value = pthread_cond_signal(cond);
+    if (value != 0){
+        printf("Error Signalling Condition Variable");
+    }
+}
+
+void Pthread_mutex_destroy(pthread_mutex_t *mutex){
+    int value = pthread_mutex_destroy(mutex);
+    if (value != 0){
+        printf("Error Destroying Mutex");
+    }
+}
+
+void Pthread_cond_destroy(pthread_cond_t *cond){
+    int value = pthread_cond_destroy(cond);
+    if (value != 0){
+        printf("Error Destroying Condition Variable");
+    }
+}
+
+void Pthread_cond_broadcast(pthread_cond_t *cond){
+    int value = pthread_cond_broadcast(cond);
+    if (value != 0){
+        printf("Error Broadcast");
+    }
+}
+
 channel_t* channel_create(size_t size)
 {
     /* IMPLEMENT THIS */
@@ -14,9 +79,9 @@ channel_t* channel_create(size_t size)
 	channel_t* channel = (channel_t *) malloc(sizeof(channel_t));
 	channel->buffer = buffer_create(size);
     channel->closed = 0;
-    pthread_cond_init(&channel->full, NULL);
-    pthread_cond_init(&channel->empty, NULL);
-	pthread_mutex_init(&channel->mutex, NULL);
+    Pthread_cond_init(&channel->full, NULL);
+    Pthread_cond_init(&channel->empty, NULL);
+	Pthread_mutex_init(&channel->mutex, NULL);
     channel->list = list_create();
     channel->size = size;
     return channel;
@@ -32,22 +97,22 @@ channel_t* channel_create(size_t size)
 enum channel_status channel_send(channel_t *channel, void* data)
 {
     /* IMPLEMENT THIS */
-    pthread_mutex_lock(&channel->mutex);
+    Pthread_mutex_lock(&channel->mutex);
     if(channel->closed){
-        pthread_mutex_unlock(&channel->mutex);
+        Pthread_mutex_unlock(&channel->mutex);
         return CLOSED_ERROR;
     }
      /* When close function closes the channel from outside and we are still waiting we should check if the channel is close  */
     while(buffer_add(channel->buffer, data)==-1){
-        pthread_cond_wait(&channel->empty, &channel->mutex);//Wait till channel not empty
+        Pthread_cond_wait(&channel->empty, &channel->mutex);//Wait till channel not empty
            // return GEN_ERROR;          
         if(channel->closed){
-        pthread_mutex_unlock(&channel->mutex);
+        Pthread_mutex_unlock(&channel->mutex);
         return CLOSED_ERROR;
         }
     }
-    pthread_cond_signal(&channel->full);
-    pthread_mutex_unlock(&channel->mutex);
+    Pthread_cond_signal(&channel->full);
+    Pthread_mutex_unlock(&channel->mutex);
     return SUCCESS;
 }
 
@@ -61,20 +126,20 @@ enum channel_status channel_send(channel_t *channel, void* data)
 enum channel_status channel_receive(channel_t* channel, void** data)
 {
     /* IMPLEMENT THIS */
-    pthread_mutex_lock(&channel->mutex);
+    Pthread_mutex_lock(&channel->mutex);
     if(channel->closed){
-        pthread_mutex_unlock(&channel->mutex);
+        Pthread_mutex_unlock(&channel->mutex);
         return CLOSED_ERROR;
     }
     while(buffer_remove(channel->buffer, data)==-1){
-        pthread_cond_wait(&channel->full, &channel->mutex);
+        Pthread_cond_wait(&channel->full, &channel->mutex);
         if(channel->closed){
-            pthread_mutex_unlock(&channel->mutex);
+            Pthread_mutex_unlock(&channel->mutex);
             return CLOSED_ERROR;
         }
     }
-    pthread_cond_signal(&channel->empty);
-    pthread_mutex_unlock(&channel->mutex);
+    Pthread_cond_signal(&channel->empty);
+    Pthread_mutex_unlock(&channel->mutex);
     return SUCCESS;
 }
 
@@ -91,17 +156,17 @@ enum channel_status channel_receive(channel_t* channel, void** data)
 enum channel_status channel_non_blocking_send(channel_t* channel, void* data)
 {
     /* IMPLEMENT THIS */
-    pthread_mutex_lock(&channel->mutex);
+    Pthread_mutex_lock(&channel->mutex);
     if(channel->closed){
-        pthread_mutex_unlock(&channel->mutex);
+        Pthread_mutex_unlock(&channel->mutex);
         return CLOSED_ERROR;
     }
     if(buffer_add(channel->buffer, data)==-1){
-        pthread_mutex_unlock(&channel->mutex);      //Was causing error when I was not unlocking in this case
+        Pthread_mutex_unlock(&channel->mutex);      //Was causing error when I was not unlocking in this case
         return CHANNEL_FULL;
     }
-    pthread_cond_signal(&channel->full);            //Was missing signal here and was waiting for very long in test cases thus failing them
-    pthread_mutex_unlock(&channel->mutex);
+    Pthread_cond_signal(&channel->full);            //Was missing signal here and was waiting for very long in test cases thus failing them
+    Pthread_mutex_unlock(&channel->mutex);
     return SUCCESS;
 }
 
@@ -119,17 +184,17 @@ enum channel_status channel_non_blocking_receive(channel_t* channel, void** data
 {
     /* IMPLEMENT THIS */
 
-    pthread_mutex_lock(&channel->mutex);
+    Pthread_mutex_lock(&channel->mutex);
     if(channel->closed){
-        pthread_mutex_unlock(&channel->mutex);
+        Pthread_mutex_unlock(&channel->mutex);
         return CLOSED_ERROR;                        
     }   
     if(buffer_remove(channel->buffer, data)==-1){
-        pthread_mutex_unlock(&channel->mutex);          //Earlier error when not unlocking in this if case.
+        Pthread_mutex_unlock(&channel->mutex);          //Earlier error when not unlocking in this if case.
         return CHANNEL_EMPTY;
     }
-    pthread_cond_signal(&channel->empty);            //Was missing signal here and was waiting for very long in test cases thus failing them
-    pthread_mutex_unlock(&channel->mutex);
+    Pthread_cond_signal(&channel->empty);            //Was missing signal here and was waiting for very long in test cases thus failing them
+    Pthread_mutex_unlock(&channel->mutex);
     return SUCCESS;
 }
 
@@ -145,16 +210,16 @@ enum channel_status channel_non_blocking_receive(channel_t* channel, void** data
 enum channel_status channel_close(channel_t* channel)
 {
     /* IMPLEMENT THIS */
-    pthread_mutex_lock(&channel->mutex);
+    Pthread_mutex_lock(&channel->mutex);
     if(channel->closed){
-        pthread_mutex_unlock(&channel->mutex);
+        Pthread_mutex_unlock(&channel->mutex);
         return CLOSED_ERROR;
     }
     channel->closed  = 1;
-    pthread_cond_broadcast(&channel->full);
-    pthread_cond_broadcast(&channel->empty);
+    Pthread_cond_broadcast(&channel->full);
+    Pthread_cond_broadcast(&channel->empty);
     //pthread_cond_broadcast(&channel->)
-    pthread_mutex_unlock(&channel->mutex);
+    Pthread_mutex_unlock(&channel->mutex);
     return SUCCESS;
 }
 
@@ -171,9 +236,9 @@ enum channel_status channel_destroy(channel_t* channel)
         return DESTROY_ERROR;
     }
     /* Destroying all the mutex and condition variables initialized. Calling buffer_free function to free the buffer. Also, freeing the memory for channel */
-    pthread_mutex_destroy(&channel->mutex);
-    pthread_cond_destroy(&channel->full);
-    pthread_cond_destroy(&channel->empty);
+    Pthread_mutex_destroy(&channel->mutex);
+    Pthread_cond_destroy(&channel->full);
+    Pthread_cond_destroy(&channel->empty);
     buffer_free(channel->buffer);
     list_destroy(channel->list);
     free(channel);
