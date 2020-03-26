@@ -7,7 +7,7 @@ import math
 import re
 
 # Test multiplier
-timeout_multiplier = 4 # increase to extend all timeouts
+timeout_multiplier = 1 # increase to extend all timeouts
 iters_multiplier = 1 # increase to test the code with more iterations
 
 # Timeouts (seconds)
