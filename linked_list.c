@@ -1,4 +1,6 @@
 #include "linked_list.h"
+#include "channel.h"
+//#include "channel.c"
 
 // Creates and returns a new list
 list_t* list_create()
@@ -9,15 +11,19 @@ list_t* list_create()
     myList->count = 0;
 
     return myList;
-    return NULL;
+    //return NULL;
 }
 
 // Destroys a list
 void list_destroy(list_t* list)
 {
     /* IMPLEMENT THIS IF YOU WANT TO USE LINKED LISTS */
-free(list);
-
+    list_node_t *temp = list->head;
+    while(temp){
+        free(temp);
+        temp = temp->next;
+    }
+    free(list);
 }
 
 // Returns beginning of the list
@@ -25,7 +31,7 @@ list_node_t* list_begin(list_t* list)
 {
     /* IMPLEMENT THIS IF YOU WANT TO USE LINKED LISTS */
     return list->head;
-    return NULL;
+    //return NULL;
 }
 
 // Returns next element in the list
@@ -58,7 +64,7 @@ list_node_t* list_find(list_t* list, void* data)
 {
     /* IMPLEMENT THIS IF YOU WANT TO USE LINKED LISTS */
     list_node_t *myList = list->head;
-    while(myList->next){
+    while(myList){
         if(myList->data == data)
             return myList;   
         myList = myList->next;
@@ -94,13 +100,33 @@ void list_remove(list_t* list, list_node_t* node)
     list_node_t *temp = list->head;
     while(temp){
         if (temp == node){
-            if((temp->next == NULL) && (temp->prev == NULL)){
+            if((temp->next == NULL) && (temp->prev == NULL)){   //Only Element in list
                 list->head = NULL;
-                Pthread_cond_destroy(temp->select);
+                pthread_cond_destroy(temp->select);
                 free(temp);
                 list->count = list->count-1;
                 temp->next = node->next;
                 //free(node);
+            }
+            else if(temp->next == NULL){        //Last Element
+                temp->prev->next = NULL;
+                pthread_cond_destroy(temp->select);
+                free(temp);
+                list->count = list->count - 1;
+            }
+            else if(temp->prev == NULL){       //First Element
+                list->head = temp->next;
+                temp->next->prev = NULL;
+                pthread_cond_destroy(temp->select);
+                free(temp);
+                list->count = list->count - 1;
+            }
+            else{                           //In middle
+                temp->prev->next = temp->next;
+                temp->next->prev = temp->prev;
+                pthread_cond_destroy(temp->select);
+                free(temp);
+                list->count = list->count -1;
             }
         }
         temp = temp->next;
