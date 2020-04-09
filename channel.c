@@ -89,25 +89,26 @@ int Pthread_cond_broadcast(pthread_cond_t *cond){
     return 1;
 }
 
-void remove_all_send(select_t* channel_list, size_t channel_count, pthread_cond_t* select){
-    for(int i = 0 ; i < channel_count; i++){
-        channel_t *channel = channel_list[i].channel;
-        void *data = channel_list[i].data;
-        Pthread_mutex_lock(&channel->mutex);
-        list_node_t *node = list_find(channel_list[i].channel->list, data);
-        list_remove(channel_list[i].channel->list, node);
-        Pthread_cond_signal(&channel->full);
-        Pthread_mutex_unlock(&channel->mutex);
-    } 
-}
+// void remove_all_send(select_t* channel_list, size_t channel_count, pthread_cond_t* select){
+//     for(int i = 0 ; i < channel_count; i++){
+//         channel_t *channel = channel_list[i].channel;
+//         void *data = channel_list[i].data;
+//         Pthread_mutex_lock(&channel->mutex);
+//         list_node_t *node = list_find(channel_list[i].channel->list, data);
+//         list_remove(channel_list[i].channel->list, node);
+//         Pthread_cond_signal(&channel->full);
+//         Pthread_mutex_unlock(&channel->mutex);
+//     } 
+// }
 
-void remove_all_receive(select_t* channel_list, size_t channel_count, pthread_cond_t* select, void* data){
+void remove_all(select_t* channel_list, size_t channel_count, pthread_cond_t* select, void* data){
     for(int i = 0 ; i < channel_count; i++){
         channel_t *channel = channel_list[i].channel;
         //void *data = channel_list[i].data;
         Pthread_mutex_lock(&channel->mutex);
-        list_remove(channel_list[i].channel->list, data);
-        Pthread_cond_signal(&channel->empty);
+        list_node_t *node = list_find(channel_list[i].channel->list, data);
+        list_remove(channel_list[i].channel->list, node);
+        //Pthread_cond_signal(&channel->empty);
         Pthread_mutex_unlock(&channel->mutex);
     }
 }
@@ -161,14 +162,17 @@ enum channel_status channel_send(channel_t *channel, void* data)
             return CLOSED_ERROR;
         }
     }
+    if(Pthread_cond_signal(&channel->full)==-1)
+        return GEN_ERROR;
+        
     if(channel->list->count != 0){
         list_node_t *temp = channel->list->head;
 
         while(temp){
             Pthread_mutex_lock(temp->select_mutex);
             Pthread_cond_signal(temp->select);
-            temp = temp->next;
             Pthread_mutex_unlock(temp->select_mutex);
+            temp = temp->next;
         }
 
     }
@@ -205,15 +209,20 @@ enum channel_status channel_receive(channel_t* channel, void** data)
             return CLOSED_ERROR;
         }
     }
-    Pthread_cond_signal(&channel->empty);
-    list_node_t *temp = channel->list->head;
-    while(temp){
-        Pthread_mutex_lock(temp->select_mutex);
-        Pthread_cond_signal(temp->select);
-        temp = temp->next;
-        Pthread_mutex_unlock(temp->select_mutex);
+    if(channel->list->count != 0){
+        list_node_t *temp = channel->list->head;
+
+        while(temp){
+            Pthread_mutex_lock(temp->select_mutex);
+            Pthread_cond_signal(temp->select);
+            Pthread_mutex_unlock(temp->select_mutex);
+            temp = temp->next;
+        }
     }
-    Pthread_mutex_unlock(&channel->mutex);
+    if(Pthread_cond_signal(&channel->empty)==-1)
+        return GEN_ERROR;
+    if(Pthread_mutex_unlock(&channel->mutex)==-1)
+        return GEN_ERROR;
     return SUCCESS;
 }
 
@@ -246,8 +255,9 @@ enum channel_status channel_non_blocking_send(channel_t* channel, void* data)
     while(temp){
         Pthread_mutex_lock(temp->select_mutex);
         Pthread_cond_signal(temp->select);
-        temp = temp->next;
         Pthread_mutex_unlock(temp->select_mutex);
+        temp = temp->next;
+        
     }
     Pthread_mutex_unlock(&channel->mutex);
     return SUCCESS;
@@ -284,8 +294,9 @@ enum channel_status channel_non_blocking_receive(channel_t* channel, void** data
     while(temp){
         Pthread_mutex_lock(temp->select_mutex);
         Pthread_cond_signal(temp->select);
-        temp = temp->next;
         Pthread_mutex_unlock(temp->select_mutex);
+        temp = temp->next;
+        
     }
     Pthread_mutex_unlock(&channel->mutex);
     return SUCCESS;
@@ -364,46 +375,42 @@ enum channel_status channel_select(select_t* channel_list, size_t channel_count,
     Pthread_mutex_lock(&select_mutex);
    for(int i = 0 ; i < channel_count; i++){
         Pthread_mutex_lock(&channel_list[i].channel->mutex);
-        list_insert(channel_list[i].channel->list, &select_mutex, &select, &data); //what to do with data if receive
+        list_insert(channel_list[i].channel->list, &select_mutex, &select, &data);
         Pthread_mutex_unlock(&channel_list[i].channel->mutex);
     }
    while(true){
     for(int i = 0 ; i < channel_count; i++){
         Pthread_mutex_lock(&channel_list[i].channel->mutex);
-        channel_t *channel = channel_list[i].channel;  
-        if(channel_list[i].dir == SEND){ // 
+        channel_t *channel = channel_list[i].channel; 
+        //Performing SEND 
+        if(channel_list[i].dir == SEND){  
             data = channel_list[i].data;
-            //channel_list[i].channel->data
-            //&channel_list[i].channel->list->data = data
             if(channel->closed){
             Pthread_mutex_unlock(&channel->mutex);
                 return CLOSED_ERROR;
             }
-            if(buffer_add(channel->buffer, data) == 0){
+            if(buffer_add(channel->buffer, data) == BUFFER_SUCCESS){
                 pthread_cond_signal(&channel->full);
                 list_node_t *temp = channel->list->head;
                 while(temp){
                     Pthread_cond_signal(temp->select);
                     temp = temp->next;
                 }
-                //pthread_cond_signal(&select);            //Was missing signal here and was waiting for very long in test cases thus failing them
-                //Pthread_mutex_unlock(&channel->mutex);
-                *selected_index = (size_t) i; //
-                //list_node_t *node = list_find(channel_list[i].channel->list, data);
-                //list_remove(channel_list[i].channel->list, node);
+                *selected_index = (size_t) i; 
+                list_node_t *node = list_find(channel_list[i].channel->list, data);
+                list_remove(channel_list[i].channel->list, node);
                 Pthread_mutex_unlock(&channel->mutex);
-                remove_all_send(channel_list, channel_count, &select);
+                remove_all(channel_list, channel_count, &select, data);
                 return SUCCESS;
             } 
         }
         //Performing RECV
-        //pthread_mutex_lock(&channel->mutex);
         if(channel_list[i].dir == RECV){// remove second condition
             if(channel->closed){
                 Pthread_mutex_unlock(&channel->mutex);
                 return CLOSED_ERROR;                        
             }   
-            if(buffer_remove(channel->buffer, &data) == 0){
+            if(buffer_remove(channel->buffer, &data) == BUFFER_SUCCESS){
                 channel_list[i].data = data;
                 pthread_cond_signal(&channel->empty);
                 list_node_t *temp = channel->list->head;
@@ -417,7 +424,7 @@ enum channel_status channel_select(select_t* channel_list, size_t channel_count,
                 list_node_t *node = list_find(channel_list[i].channel->list, data);
                 list_remove(channel_list[i].channel->list, node);
                 pthread_mutex_unlock(&channel->mutex);
-                remove_all_receive(channel_list, channel_count, &select, data);
+                remove_all(channel_list, channel_count, &select, data);
                 return SUCCESS;
             }
         }
