@@ -84,8 +84,10 @@ void list_insert(list_t* list, void* data)
         myNode->select = data;
         list->count++;
     }
+
     else{
         myNode->next = list->head;
+        myNode->select = data;
         list->head->prev = myNode;
         myNode->prev = NULL;
         list->head = myNode;

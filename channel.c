@@ -161,10 +161,12 @@ enum channel_status channel_send(channel_t *channel, void* data)
             return CLOSED_ERROR;
         }
     }
-    list_node_t *temp = channel->list->head;
-    while(temp){
-        Pthread_cond_signal(temp->select);
-        temp = temp->next;
+    if(channel->list->count != 0){
+        list_node_t *temp = channel->list->head;
+        while(temp){
+            Pthread_cond_signal(temp->select);
+            temp = temp->next;
+        }
     }
     if(Pthread_cond_signal(&channel->full)==-1)
         return GEN_ERROR;
