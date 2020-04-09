@@ -73,7 +73,7 @@ list_node_t* list_find(list_t* list, void* data)
 }
 
 // Inserts a new node in the list with the given data
-void list_insert(list_t* list, void* data)
+void list_insert(list_t* list, void* select_cond, void* data)
 {
     /* IMPLEMENT THIS IF YOU WANT TO USE LINKED LISTS */
     list_node_t *myNode = (list_node_t*)malloc(sizeof(list_node_t));
@@ -81,13 +81,16 @@ void list_insert(list_t* list, void* data)
     if(list->count == 0){
         myNode->next= NULL;
         myNode->prev = NULL;
-        myNode->select = data;
+        myNode->select = select_cond;
+        myNode->data = data;
+        list->head = myNode;
         list->count++;
     }
 
     else{
         myNode->next = list->head;
-        myNode->select = data;
+        myNode->select = select_cond;
+        myNode->data = data;
         list->head->prev = myNode;
         myNode->prev = NULL;
         list->head = myNode;

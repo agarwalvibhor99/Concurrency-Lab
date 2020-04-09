@@ -40,7 +40,7 @@ size_t list_count(list_t* list);
 list_node_t* list_find(list_t* list, void* data);
 
 // Inserts a new node in the list with the given data
-void list_insert(list_t* list, void* data);
+void list_insert(list_t* list, void* cond_insert, void* data);
 
 // Removes a node from the list and frees the node resources
 void list_remove(list_t* list, list_node_t* node);
