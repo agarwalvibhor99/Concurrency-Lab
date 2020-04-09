@@ -88,15 +88,15 @@ void list_insert(list_t* list, void* select_mutex, void* select_cond, void* data
         list->count++;
     }
     else{
-        list->head->next = myNode;
-        myNode->next = NULL;
-        myNode->prev = list->head;
-        // myNode->next = list->head;
-        // myNode->select = select_cond;
-        // myNode->data = data;
-        // list->head->prev = myNode;
-        // myNode->prev = NULL;
-        // list->head = myNode;
+        // list->head->next = myNode;
+        // myNode->next = NULL;
+        // myNode->prev = list->head;
+        myNode->next = list->head;
+        myNode->select = select_cond;
+        myNode->data = data;
+        list->head->prev = myNode;
+        myNode->prev = NULL;
+        list->head = myNode;
         list->count++;
     }
 }
@@ -139,8 +139,8 @@ void list_remove(list_t* list, list_node_t* node)
         }
         temp = temp->next;
     }
-    // if (list->count == 0)
-    //     list->head = NULL;
+    if (list->count == 0)
+         list->head = NULL;
 
     //return 1;
 }
