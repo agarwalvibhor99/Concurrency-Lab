@@ -108,7 +108,6 @@ void remove_all(select_t* channel_list, size_t channel_count, pthread_cond_t* se
         Pthread_mutex_lock(&channel->mutex);
         list_node_t *node = list_find(channel_list[i].channel->list, data);
         list_remove(channel_list[i].channel->list, node);
-        //Pthread_cond_signal(&channel->empty);
         Pthread_mutex_unlock(&channel->mutex);
     }
 }
@@ -164,7 +163,7 @@ enum channel_status channel_send(channel_t *channel, void* data)
     }
     if(Pthread_cond_signal(&channel->full)==-1)
         return GEN_ERROR;
-        
+
     if(channel->list->count != 0){
         list_node_t *temp = channel->list->head;
 
@@ -174,7 +173,6 @@ enum channel_status channel_send(channel_t *channel, void* data)
             Pthread_mutex_unlock(temp->select_mutex);
             temp = temp->next;
         }
-
     }
     if(Pthread_cond_signal(&channel->full)==-1)
         return GEN_ERROR;
@@ -324,7 +322,6 @@ enum channel_status channel_close(channel_t* channel)
     channel->closed  = 1;
     Pthread_cond_broadcast(&channel->full);
     Pthread_cond_broadcast(&channel->empty);
-    //pthread_cond_broadcast(&channel->)
     Pthread_mutex_unlock(&channel->mutex);
     return SUCCESS;
 }
@@ -364,9 +361,6 @@ enum channel_status channel_select(select_t* channel_list, size_t channel_count,
 {
     /* IMPLEMENT THIS */
 
-    // sem_t sel;
-    // sem_init(&sel, 0, 0);
-
     pthread_mutex_t select_mutex;
     pthread_cond_t select;
     void* data = NULL;
@@ -405,7 +399,7 @@ enum channel_status channel_select(select_t* channel_list, size_t channel_count,
             } 
         }
         //Performing RECV
-        if(channel_list[i].dir == RECV){// remove second condition
+        if(channel_list[i].dir == RECV){
             if(channel->closed){
                 Pthread_mutex_unlock(&channel->mutex);
                 return CLOSED_ERROR;                        
@@ -430,7 +424,6 @@ enum channel_status channel_select(select_t* channel_list, size_t channel_count,
         }
         Pthread_mutex_unlock(&channel->mutex);
     }
-    //sem_wait(&select);
     Pthread_cond_wait(&select, &select_mutex); 
    }
     Pthread_mutex_unlock(&select_mutex);
