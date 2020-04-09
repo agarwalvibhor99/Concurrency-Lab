@@ -208,8 +208,10 @@ enum channel_status channel_receive(channel_t* channel, void** data)
     Pthread_cond_signal(&channel->empty);
     list_node_t *temp = channel->list->head;
     while(temp){
+        Pthread_mutex_lock(temp->select_mutex);
         Pthread_cond_signal(temp->select);
         temp = temp->next;
+        Pthread_mutex_unlock(temp->select_mutex);
     }
     Pthread_mutex_unlock(&channel->mutex);
     return SUCCESS;
@@ -242,8 +244,10 @@ enum channel_status channel_non_blocking_send(channel_t* channel, void* data)
     Pthread_cond_signal(&channel->full);            //Was missing signal here and was waiting for very long in test cases thus failing them
     list_node_t *temp = channel->list->head;
     while(temp){
+        Pthread_mutex_lock(temp->select_mutex);
         Pthread_cond_signal(temp->select);
         temp = temp->next;
+        Pthread_mutex_unlock(temp->select_mutex);
     }
     Pthread_mutex_unlock(&channel->mutex);
     return SUCCESS;
@@ -278,8 +282,10 @@ enum channel_status channel_non_blocking_receive(channel_t* channel, void** data
     //Pthread_cond_signa
     list_node_t *temp = channel->list->head;
     while(temp){
+        Pthread_mutex_lock(temp->select_mutex);
         Pthread_cond_signal(temp->select);
         temp = temp->next;
+        Pthread_mutex_unlock(temp->select_mutex);
     }
     Pthread_mutex_unlock(&channel->mutex);
     return SUCCESS;
@@ -363,7 +369,7 @@ enum channel_status channel_select(select_t* channel_list, size_t channel_count,
     }
    while(true){
     for(int i = 0 ; i < channel_count; i++){
-        Pthread_mutex_lock(&channel_list[i].channel)
+        Pthread_mutex_lock(&channel_list[i].channel->mutex);
         channel_t *channel = channel_list[i].channel;  
         if(channel_list[i].dir == SEND){ // 
             data = channel_list[i].data;
