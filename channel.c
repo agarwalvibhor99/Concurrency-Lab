@@ -360,10 +360,6 @@ enum channel_status channel_select(select_t* channel_list, size_t channel_count,
    while(true){
     for(int i = 0 ; i < channel_count; i++){
         channel_t *channel = channel_list[i].channel;  
-        //sem_post(&select);
-        //pthread_mutex_lock(&select_mutex);
-        
-
         if(channel_list[i].dir == SEND){ // 
             data = channel_list[i].data;
             //channel_list[i].channel->data
@@ -425,14 +421,3 @@ enum channel_status channel_select(select_t* channel_list, size_t channel_count,
 }
 
 
-//Created a new conditional variable for select to wait, and signalling in both the non blocking and blocking send and receive functions to wake this. 
-//But since channel variable created is local to the loop can't signal it. Need some local variable that can help in signalling 
-
-
-
-/*
- * Array are pointers. We are given a pointer to channel_list.
-
-
-
-*/
