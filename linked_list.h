@@ -8,7 +8,7 @@ typedef struct list_node {
     struct list_node* next;
     struct list_node* prev;
     pthread_cond_t* select;
-    //pthread_mutex_t* select_mutex;
+    pthread_mutex_t* select_mutex;
     void* data;
 } list_node_t;
 
@@ -40,7 +40,7 @@ size_t list_count(list_t* list);
 list_node_t* list_find(list_t* list, void* data);
 
 // Inserts a new node in the list with the given data
-void list_insert(list_t* list, void* cond_insert, void* data);
+void list_insert(list_t* list, void* select_mutex, void* select_cond, void* data);
 
 // Removes a node from the list and frees the node resources
 void list_remove(list_t* list, list_node_t* node);
